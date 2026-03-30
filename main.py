@@ -1,24 +1,7 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import time
-from fastapi import Header, HTTPException
 import json
-
-FILE = "data.json"
-
-def load_data():
-    global mcx, premium
-    try:
-        with open(FILE, "r") as f:
-            data = json.load(f)
-            mcx = data["mcx"]
-            premium = data["premium"]
-    except:
-        pass
-
-load_data()
-
-ADMIN_API_KEY = "indiaismycountry143"
 
 app = FastAPI()
 
@@ -31,7 +14,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Live data (editable)
+ADMIN_API_KEY = "indiaismycountry143"
+
+FILE = "data.json"
+
+# Default data (fallback)
 mcx = {
     "gold": 72450,
     "silver": 88900
@@ -41,6 +28,20 @@ premium = {
     "gold": {"rtgs": 1200, "retail": 1800, "bulk": 900},
     "silver": {"rtgs": 2500, "retail": 3200, "bulk": 1800}
 }
+
+# Load saved data
+def load_data():
+    global mcx, premium
+    try:
+        with open(FILE, "r") as f:
+            data = json.load(f)
+            mcx = data["mcx"]
+            premium = data["premium"]
+            print("Data loaded")
+    except:
+        print("No saved data found")
+
+load_data()
 
 @app.get("/rates")
 def get_rates():
@@ -64,10 +65,6 @@ def get_rates():
     }
 
 @app.post("/update")
-
-with open(FILE, "w") as f:
-    json.dump({"mcx": mcx, "premium": premium}, f)
-    
 def update_rates(data: dict, x_api_key: str = Header(None)):
     global mcx, premium
 
@@ -79,5 +76,9 @@ def update_rates(data: dict, x_api_key: str = Header(None)):
 
     premium["gold"] = data["gold_premium"]
     premium["silver"] = data["silver_premium"]
+
+    # ✅ SAVE DATA HERE (correct place)
+    with open(FILE, "w") as f:
+        json.dump({"mcx": mcx, "premium": premium}, f)
 
     return {"status": "updated"}
