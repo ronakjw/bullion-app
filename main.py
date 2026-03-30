@@ -1,6 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import time
+from fastapi import Header, HTTPException
+import json
+
+FILE = "data.json"
+
+ADMIN_API_KEY = "indiaismycountry143"
 
 app = FastAPI()
 
@@ -46,8 +52,11 @@ def get_rates():
     }
 
 @app.post("/update")
-def update_rates(data: dict):
+def update_rates(data: dict, x_api_key: str = Header(None)):
     global mcx, premium
+
+    if x_api_key != ADMIN_API_KEY:
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
     mcx["gold"] = data["gold"]
     mcx["silver"] = data["silver"]
