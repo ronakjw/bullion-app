@@ -6,6 +6,18 @@ import json
 
 FILE = "data.json"
 
+def load_data():
+    global mcx, premium
+    try:
+        with open(FILE, "r") as f:
+            data = json.load(f)
+            mcx = data["mcx"]
+            premium = data["premium"]
+    except:
+        pass
+
+load_data()
+
 ADMIN_API_KEY = "indiaismycountry143"
 
 app = FastAPI()
@@ -52,6 +64,10 @@ def get_rates():
     }
 
 @app.post("/update")
+
+with open(FILE, "w") as f:
+    json.dump({"mcx": mcx, "premium": premium}, f)
+    
 def update_rates(data: dict, x_api_key: str = Header(None)):
     global mcx, premium
 
