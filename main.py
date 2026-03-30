@@ -2,7 +2,7 @@ from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 import time
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 app = FastAPI()
 
@@ -62,7 +62,7 @@ def get_rates():
             "retail": silver + premium["silver"]["retail"],
             "bulk": silver + premium["silver"]["bulk"]
         },
-        "lastUpdated": datetime.utcnow().isoformat()
+        "lastUpdated": datetime.now(timezone.utc).isoformat()
     }
 
 @app.post("/update")
