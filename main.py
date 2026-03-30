@@ -8,7 +8,9 @@ from bs4 import BeautifulSoup
 
 app = FastAPI()
 
-# Allow frontend access
+# =========================
+# CORS
+# =========================
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -17,10 +19,15 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# =========================
+# CONFIG
+# =========================
 ADMIN_API_KEY = "indiaismycountry143"
 FILE = "data.json"
 
-# Default fallback data
+# =========================
+# DEFAULT DATA (fallback)
+# =========================
 mcx = {
     "gold": 72450,
     "silver": 88900
@@ -31,7 +38,14 @@ premium = {
     "silver": {"rtgs": 2500, "retail": 3200, "bulk": 1800}
 }
 
-# 🔥 Cache control (IMPORTANT)
+# 🔥 Granular visibility control
+visibility = {
+    "rtgs": True,
+    "retail": True,
+    "bulk": True
+}
+
+# 🔥 Cache control
 last_fetch_time = 0
 CACHE_DURATION = 15  # seconds
 
@@ -67,7 +81,7 @@ def fetch_mcx_prices():
             except:
                 continue
 
-            # 🔥 Better filtering
+            # ✅ Better filtering
             if "gold" in name and "mini" not in name and gold is None:
                 gold = price
 
@@ -88,12 +102,13 @@ def fetch_mcx_prices():
 # LOAD SAVED DATA
 # =========================
 def load_data():
-    global mcx, premium
+    global mcx, premium, visibility
     try:
         with open(FILE, "r") as f:
             data = json.load(f)
-            mcx = data["mcx"]
-            premium = data["premium"]
+            mcx = data.get("mcx", mcx)
+            premium = data.get("premium", premium)
+            visibility = data.get("visibility", visibility)
             print("Data loaded")
     except:
         print("No saved data found")
@@ -110,7 +125,7 @@ def get_rates():
 
     current_time = time.time()
 
-    # 🔥 Controlled scraping (with cache)
+    # 🔥 Controlled scraping with caching
     if current_time - last_fetch_time > CACHE_DURATION:
         scraped_gold, scraped_silver = fetch_mcx_prices()
 
@@ -127,16 +142,17 @@ def get_rates():
     return {
         "gold": {
             "mcx": gold,
-            "rtgs": gold + premium["gold"]["rtgs"],
-            "retail": gold + premium["gold"]["retail"],
-            "bulk": gold + premium["gold"]["bulk"]
+            "rtgs": gold + premium["gold"]["rtgs"] if visibility["rtgs"] else None,
+            "retail": gold + premium["gold"]["retail"] if visibility["retail"] else None,
+            "bulk": gold + premium["gold"]["bulk"] if visibility["bulk"] else None
         },
         "silver": {
             "mcx": silver,
-            "rtgs": silver + premium["silver"]["rtgs"],
-            "retail": silver + premium["silver"]["retail"],
-            "bulk": silver + premium["silver"]["bulk"]
+            "rtgs": silver + premium["silver"]["rtgs"] if visibility["rtgs"] else None,
+            "retail": silver + premium["silver"]["retail"] if visibility["retail"] else None,
+            "bulk": silver + premium["silver"]["bulk"] if visibility["bulk"] else None
         },
+        "visibility": visibility,
         "lastUpdated": datetime.now(timezone.utc).isoformat()
     }
 
@@ -146,19 +162,28 @@ def get_rates():
 # =========================
 @app.post("/update")
 def update_rates(data: dict, x_api_key: str = Header(None)):
-    global mcx, premium
+    global mcx, premium, visibility
 
     if x_api_key != ADMIN_API_KEY:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
+    # Update base prices (optional override)
     mcx["gold"] = data["gold"]
     mcx["silver"] = data["silver"]
 
+    # Update premiums
     premium["gold"] = data["gold_premium"]
     premium["silver"] = data["silver_premium"]
 
-    # Save data
+    # 🔥 Update visibility controls
+    visibility = data.get("visibility", visibility)
+
+    # Save everything
     with open(FILE, "w") as f:
-        json.dump({"mcx": mcx, "premium": premium}, f)
+        json.dump({
+            "mcx": mcx,
+            "premium": premium,
+            "visibility": visibility
+        }, f)
 
     return {"status": "updated"}
