@@ -26,7 +26,7 @@ ADMIN_API_KEY = "indiaismycountry143"
 FILE = "data.json"
 
 # =========================
-# DEFAULT DATA (fallback)
+# DEFAULT DATA
 # =========================
 mcx = {
     "gold": 72450,
@@ -38,16 +38,15 @@ premium = {
     "silver": {"rtgs": 2500, "retail": 3200, "bulk": 1800}
 }
 
-# 🔥 Granular visibility control
+# 🔥 FULL CONTROL VISIBILITY
 visibility = {
-    "rtgs": True,
-    "retail": True,
-    "bulk": True
+    "gold": {"rtgs": True, "retail": True, "bulk": True},
+    "silver": {"rtgs": True, "retail": True, "bulk": True}
 }
 
-# 🔥 Cache control
+# 🔥 CACHE
 last_fetch_time = 0
-CACHE_DURATION = 15  # seconds
+CACHE_DURATION = 15
 
 
 # =========================
@@ -56,9 +55,7 @@ CACHE_DURATION = 15  # seconds
 def fetch_mcx_prices():
     try:
         url = "https://mcxlive.org/"
-        headers = {
-            "User-Agent": "Mozilla/5.0"
-        }
+        headers = {"User-Agent": "Mozilla/5.0"}
 
         res = requests.get(url, headers=headers, timeout=5)
         soup = BeautifulSoup(res.text, "html.parser")
@@ -81,7 +78,6 @@ def fetch_mcx_prices():
             except:
                 continue
 
-            # ✅ Better filtering
             if "gold" in name and "mini" not in name and gold is None:
                 gold = price
 
@@ -99,7 +95,7 @@ def fetch_mcx_prices():
 
 
 # =========================
-# LOAD SAVED DATA
+# LOAD DATA
 # =========================
 def load_data():
     global mcx, premium, visibility
@@ -125,16 +121,16 @@ def get_rates():
 
     current_time = time.time()
 
-    # 🔥 Controlled scraping with caching
+    # Cache-controlled scraping
     if current_time - last_fetch_time > CACHE_DURATION:
-        scraped_gold, scraped_silver = fetch_mcx_prices()
+        g, s = fetch_mcx_prices()
 
-        if scraped_gold is not None and scraped_silver is not None:
-            mcx["gold"] = scraped_gold
-            mcx["silver"] = scraped_silver
+        if g is not None and s is not None:
+            mcx["gold"] = g
+            mcx["silver"] = s
             last_fetch_time = current_time
         else:
-            print("Using old prices (scraping failed)")
+            print("Using old prices")
 
     gold = mcx["gold"]
     silver = mcx["silver"]
@@ -142,15 +138,15 @@ def get_rates():
     return {
         "gold": {
             "mcx": gold,
-            "rtgs": gold + premium["gold"]["rtgs"] if visibility["rtgs"] else None,
-            "retail": gold + premium["gold"]["retail"] if visibility["retail"] else None,
-            "bulk": gold + premium["gold"]["bulk"] if visibility["bulk"] else None
+            "rtgs": gold + premium["gold"]["rtgs"] if visibility["gold"]["rtgs"] else None,
+            "retail": gold + premium["gold"]["retail"] if visibility["gold"]["retail"] else None,
+            "bulk": gold + premium["gold"]["bulk"] if visibility["gold"]["bulk"] else None
         },
         "silver": {
             "mcx": silver,
-            "rtgs": silver + premium["silver"]["rtgs"] if visibility["rtgs"] else None,
-            "retail": silver + premium["silver"]["retail"] if visibility["retail"] else None,
-            "bulk": silver + premium["silver"]["bulk"] if visibility["bulk"] else None
+            "rtgs": silver + premium["silver"]["rtgs"] if visibility["silver"]["rtgs"] else None,
+            "retail": silver + premium["silver"]["retail"] if visibility["silver"]["retail"] else None,
+            "bulk": silver + premium["silver"]["bulk"] if visibility["silver"]["bulk"] else None
         },
         "visibility": visibility,
         "lastUpdated": datetime.now(timezone.utc).isoformat()
@@ -162,23 +158,19 @@ def get_rates():
 # =========================
 @app.post("/update")
 def update_rates(data: dict, x_api_key: str = Header(None)):
-    global mcx, premium, visibility
+    global premium, visibility
 
     if x_api_key != ADMIN_API_KEY:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    # Update base prices (optional override)
-    mcx["gold"] = data["gold"]
-    mcx["silver"] = data["silver"]
-
-    # Update premiums
+    # Update premiums only
     premium["gold"] = data["gold_premium"]
     premium["silver"] = data["silver_premium"]
 
-    # 🔥 Update visibility controls
+    # 🔥 Full visibility control
     visibility = data.get("visibility", visibility)
 
-    # Save everything
+    # Save
     with open(FILE, "w") as f:
         json.dump({
             "mcx": mcx,
