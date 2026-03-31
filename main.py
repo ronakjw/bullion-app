@@ -151,19 +151,22 @@ def get_rates():
     gold = mcx["gold"]
     silver = mcx["silver"]
 
-    return {
-        "gold": {
-            "mcx": gold,
-            "rtgs": gold + premium["gold"]["rtgs"] if visibility["gold"]["rtgs"] else None,
-            "retail": gold + premium["gold"]["retail"] if visibility["gold"]["retail"] else None,
-            "bulk": gold + premium["gold"]["bulk"] if visibility["gold"]["bulk"] else None
-        },
-        "silver": {
-            "mcx": silver,
-            "rtgs": silver + premium["silver"]["rtgs"] if visibility["silver"]["rtgs"] else None,
-            "retail": silver + premium["silver"]["retail"] if visibility["silver"]["retail"] else None,
-            "bulk": silver + premium["silver"]["bulk"] if visibility["silver"]["bulk"] else None
-        },
+    return 
+    
+       "gold": {
+         "mcx": gold,
+         "rtgs": gold + premium["gold"]["rtgs"] if visibility["gold"]["rtgs"] else None,
+         "retail": gold + premium["gold"]["retail"] if visibility["gold"]["retail"] else None,
+         "bulk": gold + premium["gold"]["bulk"] if visibility["gold"]["bulk"] else None,
+         "premium": premium["gold"]
+            },
+      "silver": {
+        "mcx": silver,
+        "rtgs": silver + premium["silver"]["rtgs"] if visibility["silver"]["rtgs"] else None,
+        "retail": silver + premium["silver"]["retail"] if visibility["silver"]["retail"] else None,
+        "bulk": silver + premium["silver"]["bulk"] if visibility["silver"]["bulk"] else None,
+        "premium": premium["silver"]
+            },
         "visibility": visibility,
         "scraperStatus": scraper_status,
         "lastUpdated": datetime.now(timezone.utc).isoformat()
