@@ -26,7 +26,7 @@ ADMIN_API_KEY = "indiaismycountry143"
 FILE = "data.json"
 
 # =========================
-# DEFAULT DATA
+# DEFAULT DATA (fallback)
 # =========================
 mcx = {
     "gold": 72450,
@@ -38,19 +38,21 @@ premium = {
     "silver": {"rtgs": 2500, "retail": 3200, "bulk": 1800}
 }
 
-# 🔥 FULL CONTROL VISIBILITY
 visibility = {
     "gold": {"rtgs": True, "retail": True, "bulk": True},
     "silver": {"rtgs": True, "retail": True, "bulk": True}
 }
 
-# 🔥 CACHE
+# Scraper status
+scraper_status = "FALLBACK"
+
+# Cache control
 last_fetch_time = 0
-CACHE_DURATION = 15
+CACHE_DURATION = 15  # seconds
 
 
 # =========================
-# SCRAPER
+# SCRAPER (Improved Accuracy)
 # =========================
 def fetch_mcx_prices():
     try:
@@ -78,10 +80,22 @@ def fetch_mcx_prices():
             except:
                 continue
 
-            if "gold" in name and "mini" not in name and gold is None:
+            # GOLD (strict filter)
+            if (
+                "gold" in name
+                and "mini" not in name
+                and "guinea" not in name
+                and "petal" not in name
+                and gold is None
+            ):
                 gold = price
 
-            if "silver" in name and silver is None:
+            # SILVER (strict filter)
+            if (
+                "silver" in name
+                and "mini" not in name
+                and silver is None
+            ):
                 silver = price
 
         if gold is not None and silver is not None:
@@ -95,7 +109,7 @@ def fetch_mcx_prices():
 
 
 # =========================
-# LOAD DATA
+# LOAD SAVED DATA
 # =========================
 def load_data():
     global mcx, premium, visibility
@@ -117,11 +131,11 @@ load_data()
 # =========================
 @app.get("/rates")
 def get_rates():
-    global mcx, last_fetch_time
+    global mcx, last_fetch_time, scraper_status
 
     current_time = time.time()
 
-    # Cache-controlled scraping
+    # Scrape with caching
     if current_time - last_fetch_time > CACHE_DURATION:
         g, s = fetch_mcx_prices()
 
@@ -129,8 +143,10 @@ def get_rates():
             mcx["gold"] = g
             mcx["silver"] = s
             last_fetch_time = current_time
+            scraper_status = "LIVE"
         else:
-            print("Using old prices")
+            print("Using fallback prices")
+            scraper_status = "FALLBACK"
 
     gold = mcx["gold"]
     silver = mcx["silver"]
@@ -149,12 +165,13 @@ def get_rates():
             "bulk": silver + premium["silver"]["bulk"] if visibility["silver"]["bulk"] else None
         },
         "visibility": visibility,
+        "scraperStatus": scraper_status,
         "lastUpdated": datetime.now(timezone.utc).isoformat()
     }
 
 
 # =========================
-# UPDATE (ADMIN)
+# UPDATE (ADMIN PANEL)
 # =========================
 @app.post("/update")
 def update_rates(data: dict, x_api_key: str = Header(None)):
@@ -163,14 +180,14 @@ def update_rates(data: dict, x_api_key: str = Header(None)):
     if x_api_key != ADMIN_API_KEY:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    # Update premiums only
+    # Update premiums
     premium["gold"] = data["gold_premium"]
     premium["silver"] = data["silver_premium"]
 
-    # 🔥 Full visibility control
+    # Update visibility (full control)
     visibility = data.get("visibility", visibility)
 
-    # Save
+    # Save data
     with open(FILE, "w") as f:
         json.dump({
             "mcx": mcx,
