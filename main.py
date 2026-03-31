@@ -43,16 +43,14 @@ visibility = {
     "silver": {"rtgs": True, "retail": True, "bulk": True}
 }
 
-# Scraper status
 scraper_status = "FALLBACK"
 
-# Cache control
 last_fetch_time = 0
-CACHE_DURATION = 15  # seconds
+CACHE_DURATION = 15
 
 
 # =========================
-# SCRAPER (Improved Accuracy)
+# SCRAPER
 # =========================
 def fetch_mcx_prices():
     try:
@@ -80,7 +78,6 @@ def fetch_mcx_prices():
             except:
                 continue
 
-            # GOLD (strict filter)
             if (
                 "gold" in name
                 and "mini" not in name
@@ -90,7 +87,6 @@ def fetch_mcx_prices():
             ):
                 gold = price
 
-            # SILVER (strict filter)
             if (
                 "silver" in name
                 and "mini" not in name
@@ -109,7 +105,7 @@ def fetch_mcx_prices():
 
 
 # =========================
-# LOAD SAVED DATA
+# LOAD DATA
 # =========================
 def load_data():
     global mcx, premium, visibility
@@ -135,7 +131,6 @@ def get_rates():
 
     current_time = time.time()
 
-    # Scrape with caching
     if current_time - last_fetch_time > CACHE_DURATION:
         g, s = fetch_mcx_prices()
 
@@ -151,29 +146,29 @@ def get_rates():
     gold = mcx["gold"]
     silver = mcx["silver"]
 
-return {
-    "gold": {
-        "mcx": gold,
-        "rtgs": gold + premium["gold"]["rtgs"] if visibility["gold"]["rtgs"] else None,
-        "retail": gold + premium["gold"]["retail"] if visibility["gold"]["retail"] else None,
-        "bulk": gold + premium["gold"]["bulk"] if visibility["gold"]["bulk"] else None,
-        "premium": premium["gold"]
-    },
-    "silver": {
-        "mcx": silver,
-        "rtgs": silver + premium["silver"]["rtgs"] if visibility["silver"]["rtgs"] else None,
-        "retail": silver + premium["silver"]["retail"] if visibility["silver"]["retail"] else None,
-        "bulk": silver + premium["silver"]["bulk"] if visibility["silver"]["bulk"] else None,
-        "premium": premium["silver"]
-    },
-    "visibility": visibility,
-    "scraperStatus": scraper_status,
-    "lastUpdated": datetime.now(timezone.utc).isoformat()
-}
+    return {
+        "gold": {
+            "mcx": gold,
+            "rtgs": gold + premium["gold"]["rtgs"] if visibility["gold"]["rtgs"] else None,
+            "retail": gold + premium["gold"]["retail"] if visibility["gold"]["retail"] else None,
+            "bulk": gold + premium["gold"]["bulk"] if visibility["gold"]["bulk"] else None,
+            "premium": premium["gold"]
+        },
+        "silver": {
+            "mcx": silver,
+            "rtgs": silver + premium["silver"]["rtgs"] if visibility["silver"]["rtgs"] else None,
+            "retail": silver + premium["silver"]["retail"] if visibility["silver"]["retail"] else None,
+            "bulk": silver + premium["silver"]["bulk"] if visibility["silver"]["bulk"] else None,
+            "premium": premium["silver"]
+        },
+        "visibility": visibility,
+        "scraperStatus": scraper_status,
+        "lastUpdated": datetime.now(timezone.utc).isoformat()
+    }
 
 
 # =========================
-# UPDATE (ADMIN PANEL)
+# UPDATE
 # =========================
 @app.post("/update")
 def update_rates(data: dict, x_api_key: str = Header(None)):
@@ -182,14 +177,11 @@ def update_rates(data: dict, x_api_key: str = Header(None)):
     if x_api_key != ADMIN_API_KEY:
         raise HTTPException(status_code=401, detail="Unauthorized")
 
-    # Update premiums
     premium["gold"] = data["gold_premium"]
     premium["silver"] = data["silver_premium"]
 
-    # Update visibility (full control)
     visibility = data.get("visibility", visibility)
 
-    # Save data
     with open(FILE, "w") as f:
         json.dump({
             "mcx": mcx,
